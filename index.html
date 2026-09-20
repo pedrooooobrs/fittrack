@@ -344,6 +344,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
 const db = firebase.firestore();
 let currentUser = null;
 let saveTimer = null;
@@ -352,8 +353,10 @@ let ignoreNextSnapshot = false;
 
 function googleLogin() {
   const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
   auth.signInWithPopup(provider).catch(e => {
-    showToast('Erro ao entrar: ' + e.message);
+    if (e.code === 'auth/popup-blocked') showToast('Permita popups para entrar');
+    else if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') showToast('Erro ao entrar: ' + e.message);
   });
 }
 function logout() { auth.signOut(); }
