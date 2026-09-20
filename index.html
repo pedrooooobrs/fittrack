@@ -167,7 +167,40 @@ input, button, select, textarea { font-family: inherit; }
 .exercise-body-map svg { width: 100%; height: 100%; }
 .exercise-detail { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: none; }
 .exercise-card.expanded .exercise-detail { display: block; }
-.exercise-instruction { font-size: 12px; color: var(--text-sec); line-height: 1.5; }
+.exercise-instruction { font-size: 12px; color: var(--text-sec); line-height: 1.5; margin-bottom: 12px; }
+.sets-tracker { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.set-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--surface); border-radius: var(--radius-xs); font-size: 12px; }
+.set-row.done { background: var(--accent-dim); }
+.set-num { width: 28px; height: 28px; border-radius: 50%; background: var(--card); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; color: var(--text-sec); flex-shrink: 0; border: 1px solid var(--border); }
+.set-row.done .set-num { background: var(--accent); color: #0A0A0C; border-color: var(--accent); }
+.set-inputs { display: flex; gap: 6px; flex: 1; }
+.set-input { width: 60px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 5px 6px; color: var(--text); font-size: 13px; font-weight: 600; text-align: center; outline: none; font-family: inherit; font-variant-numeric: tabular-nums; }
+.set-input:focus { border-color: var(--accent); }
+.set-input::placeholder { color: var(--text-muted); font-weight: 400; font-size: 10px; }
+.set-label { font-size: 9px; color: var(--text-muted); text-align: center; font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.set-check-btn { width: 28px; height: 28px; border-radius: 7px; border: 2px solid var(--border); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0; transition: all 0.2s; }
+.set-check-btn:hover { border-color: var(--accent); }
+.set-check-btn.checked { background: var(--accent); border-color: var(--accent); }
+.set-check-btn svg { width: 14px; height: 14px; }
+.rest-timer { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; padding: 10px; background: var(--surface); border-radius: var(--radius-sm); }
+.timer-display { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); min-width: 70px; text-align: center; }
+.timer-display.running { color: var(--accent); }
+.timer-btn { width: 36px; height: 36px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.timer-btn.start { background: var(--accent); color: #0A0A0C; }
+.timer-btn.stop { background: var(--danger); color: white; }
+.timer-btn.reset { background: var(--card); color: var(--text-sec); border: 1px solid var(--border); }
+.timer-btn:hover { filter: brightness(1.1); }
+.timer-btn svg { width: 16px; height: 16px; }
+.timer-presets { display: flex; gap: 6px; justify-content: center; margin-top: 6px; }
+.timer-preset { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-xs); padding: 4px 10px; font-size: 11px; font-weight: 600; color: var(--text-sec); cursor: pointer; transition: all 0.15s; }
+.timer-preset:hover { border-color: var(--accent); color: var(--accent); }
+.timer-preset.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+.sets-header { display: flex; gap: 8px; padding: 0 10px; margin-bottom: 4px; }
+.sets-header span { font-size: 9px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+.sets-header .sh-set { width: 28px; text-align: center; }
+.sets-header .sh-kg { width: 60px; text-align: center; }
+.sets-header .sh-reps { width: 60px; text-align: center; }
+.sets-header .sh-spacer { width: 28px; }
 .rest-day { text-align: center; padding: 60px 20px; }
 .rest-day-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.6; }
 .rest-day h3 { font-size: 20px; font-weight: 700; margin: 0 0 8px; }
@@ -589,8 +622,9 @@ const todayDow=today.getDay()===0?6:today.getDay()-1;
 let state = {
   currentTab:'treino', currentProfile:'pedro',
   selectedWeek:getMonday(today), selectedDay:todayDow,
-  workouts:[], completed:{}, weightLog:[],
-  expandedExercise:null, userName:'Pedro'
+  workouts:[], completed:{}, weightLog:[], setLogs:{},
+  expandedExercise:null, userName:'Pedro',
+  restTimerSeconds:90, restTimerRunning:false, restTimerRemaining:0, restTimerInterval:null
 };
 
 function applyTheme(pid) {
@@ -607,9 +641,10 @@ function loadProfile(pid) {
   state.workouts=pid==='pedro'?getPedroWorkouts():getLaisWorkouts();
   state.completed={};
   state.weightLog=[];
+  state.setLogs={};
   try {
     const saved=localStorage.getItem(storageKey(pid));
-    if(saved){const d=JSON.parse(saved);if(d.completed)state.completed=d.completed;if(d.weightLog)state.weightLog=d.weightLog;if(d.workouts)state.workouts=d.workouts;}
+    if(saved){const d=JSON.parse(saved);if(d.completed)state.completed=d.completed;if(d.weightLog)state.weightLog=d.weightLog;if(d.workouts)state.workouts=d.workouts;if(d.setLogs)state.setLogs=d.setLogs;}
   } catch(e){}
   applyTheme(pid);
   try{localStorage.setItem('fittrack_active',pid);}catch(e){}
@@ -618,7 +653,7 @@ function loadProfile(pid) {
 function saveState() {
   try {
     localStorage.setItem(storageKey(state.currentProfile),JSON.stringify({
-      completed:state.completed,weightLog:state.weightLog,workouts:state.workouts
+      completed:state.completed,weightLog:state.weightLog,workouts:state.workouts,setLogs:state.setLogs
     }));
   } catch(e){}
   saveToFirestore();
@@ -746,10 +781,135 @@ function renderTreino(){
         <div class="exercise-info"><div class="exercise-name">${ex.name}</div><div class="exercise-sets"><span>${ex.sets}</span> séries × <span>${ex.reps}</span> repetições</div></div>
         <div class="exercise-body-map">${getBodySVG(ex.view,ex.muscles)}</div>
       </div>
-      <div class="exercise-detail"><p class="exercise-instruction">${ex.instruction}</p></div>
+      <div class="exercise-detail">
+        <p class="exercise-instruction">${ex.instruction}</p>
+        ${renderSetsTracker(wk,state.selectedDay,i,ex)}
+      </div>
     </div>`;
   });
   view.innerHTML=html;
+}
+
+function getSetLogKey(wk,di,ei) { return wk+'_'+di+'_'+ei; }
+function getSetLog(wk,di,ei,si) {
+  const key=getSetLogKey(wk,di,ei);
+  return state.setLogs[key]?.[si] || {kg:'',reps:'',done:false};
+}
+function updateSetLog(wk,di,ei,si,field,value) {
+  const key=getSetLogKey(wk,di,ei);
+  if(!state.setLogs[key]) state.setLogs[key]=[];
+  if(!state.setLogs[key][si]) state.setLogs[key][si]={kg:'',reps:'',done:false};
+  state.setLogs[key][si][field]=value;
+  saveState();
+}
+function toggleSetDone(wk,di,ei,si) {
+  const key=getSetLogKey(wk,di,ei);
+  if(!state.setLogs[key]) state.setLogs[key]=[];
+  if(!state.setLogs[key][si]) state.setLogs[key][si]={kg:'',reps:'',done:false};
+  state.setLogs[key][si].done = !state.setLogs[key][si].done;
+  if(state.setLogs[key][si].done) startRestTimer();
+  const ex=state.workouts[di].exercises[ei];
+  const allDone=ex && state.setLogs[key] && state.setLogs[key].filter(s=>s&&s.done).length>=ex.sets;
+  if(allDone && !isExerciseDone(wk,di,ei)) { toggleExercise(wk,di,ei); renderHeader(); }
+  else if(!allDone && isExerciseDone(wk,di,ei)) { toggleExercise(wk,di,ei); renderHeader(); }
+  saveState();
+  renderTreino();
+}
+
+function renderSetsTracker(wk,di,ei,ex) {
+  let html=`<div class="sets-header"><span class="sh-set">Série</span><span class="sh-kg">Kg</span><span class="sh-reps">Reps</span><span class="sh-spacer"></span></div><div class="sets-tracker">`;
+  for(let s=0;s<ex.sets;s++){
+    const log=getSetLog(wk,di,ei,s);
+    html+=`<div class="set-row ${log.done?'done':''}">
+      <div class="set-num">${s+1}</div>
+      <div class="set-inputs">
+        <input class="set-input" type="number" placeholder="kg" value="${log.kg}" min="0" step="0.5"
+          onclick="event.stopPropagation()" onchange="updateSetLog('${wk}',${di},${ei},${s},'kg',this.value)">
+        <input class="set-input" type="number" placeholder="reps" value="${log.reps}" min="0"
+          onclick="event.stopPropagation()" onchange="updateSetLog('${wk}',${di},${ei},${s},'reps',this.value)">
+      </div>
+      <button class="set-check-btn ${log.done?'checked':''}" onclick="event.stopPropagation();toggleSetDone('${wk}',${di},${ei},${s})">${log.done?checkSVG:''}</button>
+    </div>`;
+  }
+  html+=`</div>`;
+  html+=renderRestTimer();
+  return html;
+}
+
+let timerInterval=null;
+let timerRemaining=0;
+let timerRunning=false;
+let timerDuration=90;
+
+function renderRestTimer() {
+  const mm=String(Math.floor(timerRemaining/60)).padStart(2,'0');
+  const ss=String(timerRemaining%60).padStart(2,'0');
+  const playSVG=`<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>`;
+  const pauseSVG=`<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/></svg>`;
+  const resetSVG=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 105.64-11.36L3 10"/></svg>`;
+  return `<div class="rest-timer">
+    <button class="timer-btn reset" onclick="event.stopPropagation();resetTimer()">${resetSVG}</button>
+    <div class="timer-display ${timerRunning?'running':''}">${mm}:${ss}</div>
+    <button class="timer-btn ${timerRunning?'stop':'start'}" onclick="event.stopPropagation();${timerRunning?'pauseTimer()':'startRestTimer()'}">${timerRunning?pauseSVG:playSVG}</button>
+  </div>
+  <div class="timer-presets">
+    ${[30,60,90,120].map(s=>`<button class="timer-preset ${timerDuration===s?'active':''}" onclick="event.stopPropagation();setTimerDuration(${s})">${s>=60?(s/60)+'min':s+'s'}</button>`).join('')}
+  </div>`;
+}
+
+function startRestTimer() {
+  if(timerRunning) return;
+  timerRemaining=timerDuration;
+  timerRunning=true;
+  if(timerInterval) clearInterval(timerInterval);
+  timerInterval=setInterval(()=>{
+    timerRemaining--;
+    if(timerRemaining<=0){
+      clearInterval(timerInterval);
+      timerRunning=false;
+      timerRemaining=0;
+      try { if(navigator.vibrate) navigator.vibrate([200,100,200]); } catch(e){}
+      showToast('Descanso finalizado!');
+    }
+    updateTimerDisplay();
+  },1000);
+  updateTimerDisplay();
+}
+
+function pauseTimer() {
+  timerRunning=false;
+  if(timerInterval) clearInterval(timerInterval);
+  updateTimerDisplay();
+}
+
+function resetTimer() {
+  timerRunning=false;
+  if(timerInterval) clearInterval(timerInterval);
+  timerRemaining=0;
+  updateTimerDisplay();
+}
+
+function setTimerDuration(s) {
+  timerDuration=s;
+  if(!timerRunning) timerRemaining=0;
+  renderTreino();
+}
+
+function updateTimerDisplay() {
+  const el=document.querySelector('.timer-display');
+  if(!el) return;
+  const mm=String(Math.floor(timerRemaining/60)).padStart(2,'0');
+  const ss=String(timerRemaining%60).padStart(2,'0');
+  el.textContent=mm+':'+ss;
+  el.className='timer-display'+(timerRunning?' running':'');
+  const btn=document.querySelector('.rest-timer .timer-btn:last-child');
+  if(btn) {
+    btn.className='timer-btn '+(timerRunning?'stop':'start');
+    const playSVG=`<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>`;
+    const pauseSVG=`<svg viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/></svg>`;
+    btn.innerHTML=timerRunning?pauseSVG:playSVG;
+    btn.setAttribute('onclick','event.stopPropagation();'+(timerRunning?'pauseTimer()':'startRestTimer()'));
+  }
 }
 
 function checkExercise(i){toggleExercise(dateKey(state.selectedWeek),state.selectedDay,i);renderTreino();renderHeader();}
@@ -914,7 +1074,7 @@ function saveWorkoutEdit(d){
   saveState();closeModal();renderPerfil();renderHeader();if(state.selectedDay===d)renderTreino();showToast('Treino atualizado');
 }
 function exportData(){
-  const data=JSON.stringify({completed:state.completed,weightLog:state.weightLog,workouts:state.workouts},null,2);
+  const data=JSON.stringify({completed:state.completed,weightLog:state.weightLog,workouts:state.workouts,setLogs:state.setLogs},null,2);
   openModal(`<div class="modal-header"><div class="modal-title">Exportar Dados</div><button class="modal-close" onclick="closeModal()">&times;</button></div>
     <p style="font-size:13px;color:var(--text-sec);margin:0 0 10px;">Copie o texto abaixo e salve em um lugar seguro.</p>
     <textarea class="form-input" style="height:200px;font-size:11px;font-family:monospace;resize:vertical;" readonly onclick="this.select()">${data}</textarea>
@@ -928,7 +1088,7 @@ function importData(){
 }
 function doImport(){
   try{const d=JSON.parse(document.getElementById('importTextarea')?.value);
-    if(d.completed)state.completed=d.completed;if(d.weightLog)state.weightLog=d.weightLog;if(d.workouts)state.workouts=d.workouts;
+    if(d.completed)state.completed=d.completed;if(d.weightLog)state.weightLog=d.weightLog;if(d.workouts)state.workouts=d.workouts;if(d.setLogs)state.setLogs=d.setLogs;
     saveState();closeModal();showToast('Dados importados');renderAll();
   }catch(e){showToast('Dados inválidos');}
 }
