@@ -347,6 +347,8 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 let currentUser = null;
 let saveTimer = null;
+let unsubscribeSnapshot = null;
+let ignoreNextSnapshot = false;
 
 function googleLogin() {
   const provider = new firebase.auth.GoogleAuthProvider();
@@ -365,8 +367,10 @@ auth.onAuthStateChanged(async user => {
     document.getElementById('syncIndicator').style.display = 'block';
     renderUserBar();
     await loadFromFirestore();
+    startRealtimeSync();
     renderAll();
   } else {
+    if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('mainApp').style.display = 'none';
     document.getElementById('syncIndicator').style.display = 'none';
@@ -415,6 +419,7 @@ function saveToFirestore() {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     setSyncStatus('syncing');
+    ignoreNextSnapshot = true;
     try {
       const profiles = {};
       Object.keys(PROFILES).forEach(pid => {
@@ -431,8 +436,32 @@ function saveToFirestore() {
       setSyncStatus('ok');
     } catch(e) {
       setSyncStatus('offline');
+      ignoreNextSnapshot = false;
     }
   }, 1500);
+}
+
+function startRealtimeSync() {
+  if (unsubscribeSnapshot) unsubscribeSnapshot();
+  if (!currentUser) return;
+  unsubscribeSnapshot = db.collection('users').doc(currentUser.uid)
+    .onSnapshot(doc => {
+      if (ignoreNextSnapshot) { ignoreNextSnapshot = false; return; }
+      if (!doc.exists) return;
+      const data = doc.data();
+      if (!data.profiles) return;
+      const pid = state.currentProfile;
+      if (data.profiles[pid]) {
+        try { localStorage.setItem(storageKey(pid), JSON.stringify(data.profiles[pid])); } catch(e) {}
+        const d = data.profiles[pid];
+        if (d.completed) state.completed = d.completed;
+        if (d.weightLog) state.weightLog = d.weightLog;
+        if (d.workouts) state.workouts = d.workouts;
+        if (d.setLogs) state.setLogs = d.setLogs;
+        renderAll();
+        setSyncStatus('ok');
+      }
+    }, err => { setSyncStatus('offline'); });
 }
 
 // ─── Constants ───
